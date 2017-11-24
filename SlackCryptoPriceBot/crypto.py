@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+import os
 import datetime
 import requests
 import logging
+import json
+import redis
 
 
 logger = logging.getLogger(__name__)
@@ -38,6 +41,13 @@ class Blockchain(object):
     def __getitem__(self, key):
         return self._data.get(key)
 
+    def __getattr__(self, key):
+        return self._data.get(key)
+
+    @property
+    def market_cap(self):
+        return float(self._data.get('market_cap_usd') or 0)
+
     @property
     def last_updated(self):
         return datetime.utcfromtimestamp(int(self._data.get('last_updated', 0)))
@@ -56,27 +66,32 @@ class Blockchain(object):
 
     @property
     def one_hour(self):
-        return float(self._data.get('percent_change_1h'))
+        return float(self._data.get('percent_change_1h') or 0)
 
     @property
     def one_day(self):
-        return float(self._data.get('percent_change_24h'))
+        return float(self._data.get('percent_change_24h') or 0)
 
     @property
     def one_week(self):
-        return float(self._data.get('percent_change_7d'))
+        return float(self._data.get('percent_change_7d') or 0)
 
     def __str__(self):
-        return f'{self.symbol} ${self.usd}'
+        od = self.one_day
+        od = f'{od}' if od < 0 else f' {od}'
+        return f'{self.symbol}\t${self.usd}  {od}  ${self.market_cap}'
 
 
 class CryptoWorld(object):
-    def __init__(self):
+    REDIS_KEY_GLOBAL = 'coin_global'
+    REDIS_KEY_TICKER = 'coin_ticker'
+
+    def __init__(self, redis_db, data_expire=600):
+        self._redis_db = redis_db
+        self._data_expire = data_expire
         self._global = {}
         self._by_symbol = {}
         self._by_id = {}
-        self._last_global_update = None
-        self._last_ticker_update = None
 
     @property
     def total_cap(self):
@@ -102,65 +117,86 @@ class CryptoWorld(object):
     def last_updated(self):
         return datetime.utcfromtimestamp(int(self._global.get('last_updated', 0)))
 
-    def update_global(self):
-        # Get the global market data
-        # XXX(need to check age of cached object and return cache or refresh if needed.)
-        logger.info("Fetching global info...")
-        resp = requests.get(GLOBAL_URL)
-        logger.info("Fetched global info %s", resp)
+    def _get_cached(self, key, url, params={}):
+        logger.debug("_get_cached %s, %s, %s", key, url, params)
+        data = self._redis_db.get(key)
+
+        if data:
+            logger.debug("_get_cached HIT")
+            return json.loads(data)
+
+        logger.debug("_get_cached MISS")
+        resp = requests.get(url, params=params)
 
         if resp.status_code != requests.codes.ok:
             resp.raise_for_status()
 
-        self._global = resp.json()
-        self._last_global_update = datetime.datetime.utcnow()
+        self._redis_db.setex(key, resp.content, self._data_expire)
+        logger.debug("_get_cached UPDATED")
+
+        return resp.json()
+
+    def update_global(self):
+        # Get the global market data
+        logger.info("Fetching global info...")
+
+        g_data = self._get_cached(self.REDIS_KEY_GLOBAL, GLOBAL_URL)
+
+        self._global = g_data
+        logger.info("Fetched global info %s", self._global)
 
         return self
 
     def update_ticker(self):
         # Get all price data for all currencies
-        # XXX(need to check age of cached objects and return cache or refresh if needed.)
         logger.info("Fetching ticker info...")
-        resp = requests.get(f'{TICKER_URL}limit=0')
-        logger.info("Fetched ticker info %s", resp)
 
-        if resp.status_code != requests.codes.ok:
-            resp.raise_for_status()
+        t_data = self._get_cached(self.REDIS_KEY_TICKER, f'{TICKER_URL}', params={'limit': 0})
 
-        for bcd in resp.json():
-            bc = Blockchain()
-            self._by_id[bcd['id']] = bc.id
-            self._by_symbol[bcd['symbol']] = bc.symbol
+        for bcd in t_data:
+            print('BCD:', bcd)
+            bc = Blockchain(bcd)
+            self._by_id[bcd['id']] = bc
+            self._by_symbol[bcd['symbol']] = bc
 
-        self._last_ticker_update = datetime.datetime.utcnow()
-
-        return
+        return self
 
     def ticker_get(self, bc_id):
         if not bc_id:
             raise ValueError('Invalid block chain id argument')
 
-        # Return from cache
-        # XXX(need to check age of cached object and refresh if needed.)
+        self.update_ticker()
         return self._by_id.get(bc_id)
-
-        resp = requests.get(f'{TICKER_URL}{bc_id}/')
-
-        if resp.status_code != requests.codes.ok:
-            resp.raise_for_status()
-
-        return Blockchain(resp.json())
 
     def update(self):
         self.update_global()
         self.update_ticker()
 
     def __str__(self):
-        return '\n'.join(f'{bc}' for bc in self._by_id.values())
+        #  logger.info("STR: %s", self._by_id.values())
+        return (
+            f'Total Market Cap\t{self.total_cap}\n'
+            f'Total 24 Hour Volume\t{self.total_daily_volume}\n'
+            f'Active Currencies\t{self.active_currencies}\n'
+            f'Active Markets\t\t{self.active_markets}\n'
+        ) + '\n'.join(f'{bc}' for bc in self._by_id.values())
 
 
 def main():
-    cw = CryptoWorld()
+    # Set up the logger
+    logger = logging.getLogger(__name__)
+    # Use a console handler, set it to debug by default
+    logger_ch = logging.StreamHandler()
+    logger.setLevel(logging.DEBUG)
+    log_formatter = logging.Formatter(('%(levelname)s: %(asctime)s %(processName)s:%(process)d'
+                                       ' %(filename)s:%(lineno)s %(module)s::%(funcName)s()'
+                                       ' -- %(message)s'))
+    logger_ch.setFormatter(log_formatter)
+    logger.addHandler(logger_ch)
+
+    redis_db = redis.Redis.from_url(os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0'))
+
+    cw = CryptoWorld(redis_db)
     cw.update()
     print(f'CryptoWorld:\n{cw}')
 
