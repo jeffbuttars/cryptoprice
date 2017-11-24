@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 A routing layer for the crypto price bot tutorial built using
@@ -5,8 +6,21 @@ A routing layer for the crypto price bot tutorial built using
 """
 import os
 import json
+from pprint import pformat
+import logging
 import bot
 from flask import Flask, request, make_response, render_template
+
+# Set up the logger
+logger = logging.getLogger(__name__)
+# Use a console handler, set it to debug by default
+logger_ch = logging.StreamHandler()
+logger.setLevel(logging.DEBUG)
+log_formatter = logging.Formatter(('%(levelname)s: %(asctime)s %(processName)s:%(process)d'
+                                   ' %(filename)s:%(lineno)s %(module)s::%(funcName)s()'
+                                   ' -- %(message)s'))
+logger_ch.setFormatter(log_formatter)
+logger.addHandler(logger_ch)
 
 from optparse import OptionParser
 
@@ -23,25 +37,35 @@ opt_parser.add_option(
 
 opt_parser.add_option(
     "-c", "--client-id", dest="client_id",
-    default=os.environ.get('CLIENT_ID', '')
+    default=os.environ.get('CLIENT_ID', ''),
     help=("API Client ID")
 )
 
 opt_parser.add_option(
     "-s", "--client-secret", dest="client_secret",
-    default=os.environ.get('CLIENT_SECRET', '')
+    default=os.environ.get('CLIENT_SECRET', ''),
     help=("API Client Secret")
 )
 
 opt_parser.add_option(
     "-t", "--verification-token", dest="verification_token",
-    default=os.environ.get('VERIFICATION_TOKEN', '')
+    default=os.environ.get('VERIFICATION_TOKEN', ''),
     help=("API Client Verification Token")
 )
 
-pyBot = bot.Bot()
-slack = pyBot.client
+(options, _) = opt_parser.parse_args()
 
+oauth = {
+    "client_id": options.client_id,
+    "client_secret": options.client_secret,
+    # Scopes provide and limit permissions to what our app
+    # can access. It's important to use the most restricted
+    # scope that your app will need.
+    "scope": "bot"
+}
+
+pyBot = bot.Bot(name='Cryptoprice', oauth=oauth, verification=options.verification_token)
+slack = pyBot.client
 app = Flask(__name__)
 
 
@@ -63,6 +87,8 @@ def _event_handler(event_type, slack_event):
         Response object with 200 - ok or 500 - No Event Handler error
 
     """
+    logger.debug("SLACK EVENT handler: type: %s, event: %s", event_type, pformat(slack_event))
+
     team_id = slack_event["team_id"]
     # ================ Team Join Events =============== #
     # When the user first joins a team, the type of event will be team_join
@@ -112,6 +138,7 @@ def pre_install():
     """This route renders the installation page with 'Add to Slack' button."""
     # Since we've set the client ID and scope on our Bot object, we can change
     # them more easily while we're developing our app.
+    logger.debug("SLACK EVENT install")
     client_id = pyBot.oauth["client_id"]
     scope = pyBot.oauth["scope"]
     # Our template is using the Jinja templating language to dynamically pass
@@ -129,6 +156,7 @@ def thanks():
     """
     # Let's grab that temporary authorization code Slack's sent us from
     # the request's parameters.
+    logger.debug("SLACK EVENT thanks: %s", pformat(request.args))
     code_arg = request.args.get('code')
     # The bot's auth method to handles exchanging the code for an OAuth token
     pyBot.auth(code_arg)
@@ -142,6 +170,8 @@ def hears():
     handler helper function to route events to our Bot.
     """
     slack_event = json.loads(request.data)
+
+    logger.debug("SLACK EVENT listening: %s", pformat(slack_event))
 
     # ============= Slack URL Verification ============ #
     # In order to verify the url of our endpoint, Slack will send a challenge
@@ -176,6 +206,5 @@ def hears():
 
 
 if __name__ == '__main__':
-    (options, args) = opt_parser.parse_args()
 
     app.run(debug=options.debug)
