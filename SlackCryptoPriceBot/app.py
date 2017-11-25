@@ -9,7 +9,6 @@ import json
 import redis
 from pprint import pformat
 import logging
-from optparse import OptionParser
 import bot
 from flask import Flask, request, make_response, render_template
 from crypto import CryptoWorld
@@ -18,7 +17,7 @@ from crypto import CryptoWorld
 logger = logging.getLogger(__name__)
 # Use a console handler, set it to debug by default
 logger_ch = logging.StreamHandler()
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 log_formatter = logging.Formatter(('%(levelname)s: %(asctime)s %(processName)s:%(process)d'
                                    ' %(filename)s:%(lineno)s %(module)s::%(funcName)s()'
                                    ' -- %(message)s'))
@@ -26,60 +25,29 @@ logger_ch.setFormatter(log_formatter)
 logger.addHandler(logger_ch)
 
 
-opt_parser = OptionParser(
-    usage=("usage: %prog Crypto Currency Slackbot.")
-)
-
-# A basic option that sets an option variable to a string value
-opt_parser.add_option(
-    "-d", "--debug", dest="debug",
-    default=False, action='store_true',
-    help=("Enable debugging")
-)
-
-opt_parser.add_option(
-    "-c", "--client-id", dest="client_id",
-    default=os.environ.get('CLIENT_ID', ''),
-    help=("API Client ID")
-)
-
-opt_parser.add_option(
-    "-s", "--client-secret", dest="client_secret",
-    default=os.environ.get('CLIENT_SECRET', ''),
-    help=("API Client Secret")
-)
-
-opt_parser.add_option(
-    "-t", "--verification-token", dest="verification_token",
-    default=os.environ.get('VERIFICATION_TOKEN', ''),
-    help=("API Client Verification Token")
-)
-
-opt_parser.add_option(
-    "-r", "--redis-url", dest="redis_url",
-    default=os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0'),
-    help=("Redis URL")
-)
-
-(options, _) = opt_parser.parse_args()
-
 oauth = {
-    "client_id": options.client_id,
-    "client_secret": options.client_secret,
+    "client_id": os.environ.get('CLIENT_ID', ''),
+    "client_secret": os.environ.get('CLIENT_SECRET', ''),
     # Scopes provide and limit permissions to what our app
     # can access. It's important to use the most restricted
     # scope that your app will need.
     "scope": "bot"
 }
 
-redis_db = redis.Redis.from_url(options.redis_url)
+redis_db = redis.Redis.from_url(os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0'))
 cryptoWorld = CryptoWorld(redis_db)
+cryptoWorld.update()
 
 pyBot = bot.Bot(
-    cryptoWorld, name='Cryptoprice', oauth=oauth, verification=options.verification_token)
-slack = pyBot.client
-app = Flask(__name__)
+    cryptoWorld,
+    name='Cryptoprice',
+    oauth=oauth,
+    verification=os.environ.get('VERIFICATION_TOKEN', '')
+)
 
+slack = pyBot.client
+
+app = Flask(__name__)
 
 
 def _event_handler(event_type, slack_event):
@@ -226,8 +194,3 @@ def hears():
     # send a quirky but helpful error response
     return make_response("[NO EVENT IN SLACK REQUEST] These are not the droids\
                          you're looking for.", 404, {"X-Slack-No-Retry": 1})
-
-
-if __name__ == '__main__':
-    cryptoWorld.update()
-    app.run(debug=options.debug)
