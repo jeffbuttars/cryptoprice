@@ -25,6 +25,10 @@ logger_ch.setFormatter(log_formatter)
 logger.addHandler(logger_ch)
 
 
+if os.environ.get('PYTHON_DEBUG', 'false') == 'true':
+    logger.setLevel(logging.DEBUG)
+
+
 oauth = {
     "client_id": os.environ.get('CLIENT_ID', ''),
     "client_secret": os.environ.get('CLIENT_SECRET', ''),
