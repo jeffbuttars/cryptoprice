@@ -6,10 +6,13 @@ A routing layer for the crypto price bot tutorial built using
 """
 import os
 import json
+import redis
 from pprint import pformat
 import logging
+from optparse import OptionParser
 import bot
 from flask import Flask, request, make_response, render_template
+from crypto import CryptoWorld
 
 # Set up the logger
 logger = logging.getLogger(__name__)
@@ -22,7 +25,6 @@ log_formatter = logging.Formatter(('%(levelname)s: %(asctime)s %(processName)s:%
 logger_ch.setFormatter(log_formatter)
 logger.addHandler(logger_ch)
 
-from optparse import OptionParser
 
 opt_parser = OptionParser(
     usage=("usage: %prog Crypto Currency Slackbot.")
@@ -53,6 +55,12 @@ opt_parser.add_option(
     help=("API Client Verification Token")
 )
 
+opt_parser.add_option(
+    "-r", "--redis-url", dest="redis_url",
+    default=os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0'),
+    help=("Redis URL")
+)
+
 (options, _) = opt_parser.parse_args()
 
 oauth = {
@@ -64,9 +72,14 @@ oauth = {
     "scope": "bot"
 }
 
-pyBot = bot.Bot(name='Cryptoprice', oauth=oauth, verification=options.verification_token)
+redis_db = redis.Redis.from_url(options.redis_url)
+cryptoWorld = CryptoWorld(redis_db)
+
+pyBot = bot.Bot(
+    cryptoWorld, name='Cryptoprice', oauth=oauth, verification=options.verification_token)
 slack = pyBot.client
 app = Flask(__name__)
+
 
 
 def _event_handler(event_type, slack_event):
@@ -90,6 +103,16 @@ def _event_handler(event_type, slack_event):
     logger.debug("SLACK EVENT handler: type: %s, event: %s", event_type, pformat(slack_event))
 
     team_id = slack_event["team_id"]
+
+    if event_type == 'message':
+        print('Message!')
+        m_text = slack_event['event'].get('text', '').lower()
+        if 'price' in m_text:
+            print('Price Message!')
+            user_id = slack_event["event"]["user"]
+            pyBot.price_message(team_id, user_id, slack_event["event"]["channel"], m_text)
+            return make_response('Pricing!', 200,)
+
     # ================ Team Join Events =============== #
     # When the user first joins a team, the type of event will be team_join
     if event_type == "team_join":
@@ -98,17 +121,17 @@ def _event_handler(event_type, slack_event):
         pyBot.onboarding_message(team_id, user_id)
         return make_response("Welcome Message Sent", 200,)
 
-    # ============== Share Message Events ============= #
-    # If the user has shared the onboarding message, the event type will be
-    # message. We'll also need to check that this is a message that has been
-    # shared by looking into the attachments for "is_shared".
-    elif event_type == "message" and slack_event["event"].get("attachments"):
-        user_id = slack_event["event"].get("user")
-        if slack_event["event"]["attachments"][0].get("is_share"):
-            # Update the onboarding message and check off "Share this Message"
-            pyBot.update_share(team_id, user_id)
-            return make_response("Welcome message updates with shared message",
-                                 200,)
+    #  # ============== Share Message Events ============= #
+    #  # If the user has shared the onboarding message, the event type will be
+    #  # message. We'll also need to check that this is a message that has been
+    #  # shared by looking into the attachments for "is_shared".
+    #  elif event_type == "message" and slack_event["event"].get("attachments"):
+    #      user_id = slack_event["event"].get("user")
+    #      if slack_event["event"]["attachments"][0].get("is_share"):
+    #          # Update the onboarding message and check off "Share this Message"
+    #          pyBot.update_share(team_id, user_id)
+    #          return make_response("Welcome message updates with shared message",
+    #                               200,)
 
     # ============= Reaction Added Events ============= #
     # If the user has added an emoji reaction to the onboarding message
@@ -206,5 +229,5 @@ def hears():
 
 
 if __name__ == '__main__':
-
+    cryptoWorld.update()
     app.run(debug=options.debug)

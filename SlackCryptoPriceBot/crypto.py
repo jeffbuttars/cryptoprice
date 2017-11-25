@@ -76,6 +76,13 @@ class Blockchain(object):
     def one_week(self):
         return float(self._data.get('percent_change_7d') or 0)
 
+    @property
+    def slack_str(self):
+        return (
+            f'*{self.symbol}* \t*${self.usd}* :dollar:\n'
+            f'\t1h: {self.one_hour}%,\t24h: {self.one_day}%,\t7d: {self.one_week}%'
+        )
+
     def __str__(self):
         od = self.one_day
         od = f'{od}' if od < 0 else f' {od}'
@@ -154,10 +161,9 @@ class CryptoWorld(object):
         t_data = self._get_cached(self.REDIS_KEY_TICKER, f'{TICKER_URL}', params={'limit': 0})
 
         for bcd in t_data:
-            print('BCD:', bcd)
             bc = Blockchain(bcd)
             self._by_id[bcd['id']] = bc
-            self._by_symbol[bcd['symbol']] = bc
+            self._by_symbol[bcd['symbol'].lower()] = bc
 
         return self
 
@@ -166,11 +172,26 @@ class CryptoWorld(object):
             raise ValueError('Invalid block chain id argument')
 
         self.update_ticker()
-        return self._by_id.get(bc_id)
+        return self._by_id.get(bc_id.lower())
 
     def update(self):
         self.update_global()
         self.update_ticker()
+
+    def fuzzy_match(self, tokens):
+        symbols = set(tokens) & set(self._by_symbol.keys())
+        ids = (set(tokens) & set(self._by_id.keys())) - symbols
+
+        res = []
+        if symbols:
+            for s in symbols:
+                res.append(self._by_symbol[s])
+
+        if ids:
+            for id in ids:
+                res.append(self._by_id[id])
+
+        return res
 
     def __str__(self):
         #  logger.info("STR: %s", self._by_id.values())

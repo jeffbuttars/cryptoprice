@@ -2,6 +2,8 @@
 """
 Python Slack Bot class for use with the pythOnBoarding app
 """
+import os
+import string
 import message
 
 from slackclient import SlackClient
@@ -15,7 +17,7 @@ authed_teams = {}
 
 class Bot(object):
     """ Instanciates a Bot object to handle Slack onboarding interactions."""
-    def __init__(self, name, oauth, verification, emoji=':robot_face:'):
+    def __init__(self, cryptoWorld, name, oauth, verification, emoji=':robot_face:'):
         super(Bot, self).__init__()
         self._name = name
         self._emoji = emoji
@@ -34,11 +36,13 @@ class Bot(object):
         # an oauth token. We can connect to the client without authenticating
         # by passing an empty string as a token and then reinstantiating the
         # client with a valid OAuth token once we have one.
-        self._client = SlackClient("")
+        self._client = SlackClient(os.environ.get('SLACK_BOT_TOKEN', ''))
         # We'll use this dictionary to store the state of each message object.
         # In a production envrionment you'll likely want to store this more
         # persistantly in  a database.
         self._messages = {}
+
+        self._cw = cryptoWorld
 
     @property
     def name(self):
@@ -168,6 +172,40 @@ class Bot(object):
         # message object which we'll use to update the message after a user
         # has completed an onboarding task.
         message_obj.timestamp = timestamp
+
+    def price_message(self, team_id, user_id, channel_id, message):
+        """
+        Create and send a price quote users. Save the
+        time stamp of this message on the message object for updating in the
+        future.
+
+        Parameters
+        ----------
+        team_id : str
+            id of the Slack team associated with the incoming event
+        user_id : str
+            id of the Slack user associated with the incoming event
+
+        """
+        #  print(f'price_message channel: {channel_id}, username: {self.name}, emoji: {self.emoji}')
+
+        message = message.lower()
+        parts = message.translate(str.maketrans('', '', string.punctuation)).split()
+
+        matched = self._cw.fuzzy_match(parts)
+        print('MATCHED:', matched)
+        resp_str = '\n'.join([m.slack_str for m in matched])
+
+        resp = self.client.api_call(
+            'chat.postMessage',
+            as_user=True,
+            channel=channel_id,
+            username=self.name,
+            icon_emoji=self.emoji,
+            text=resp_str,
+        )
+
+        print(f'price_message resp: {resp}')
 
     def update_emoji(self, team_id, user_id):
         """
