@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 @annotate(renderers=[HTMLRenderer()])
-def index(name: str=''):
+async def index(name: str=''):
     logger.debug("INDEX %s", name)
     return render_template('index.html', name=name)
 

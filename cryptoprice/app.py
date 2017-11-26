@@ -1,12 +1,16 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from pprint import pformat as pf
+import logging
 from apistar import Include
 from apistar.frameworks.asyncio import ASyncIOApp as App
 from apistar.handlers import docs_urls, static_urls
+from settings import settings
 from index.index import routes as index_routes
-import logging
+from redis_component import RedisConnection
+from slackbot.component import CryptoAPI
+from slackbot.app import routes as slackbot_routes
+
 
 # Set up the logger
 logger = logging.getLogger(__name__)
@@ -46,20 +50,17 @@ logger.addHandler(logger_ch)
 #      }
 
 routes = [
-    Include('/', index_routes),
+    Include('', index_routes),
+    Include('', slackbot_routes),
     Include('/static', static_urls),
     Include('/docs', docs_urls),
 ]
 
-settings = {
-    'TEMPLATES': {
-        'ROOT_DIR': ['index/templates'],
-        'PACKAGE_DIRS': ['apistar'],
-    },
-}
-logger.debug("settings %s", pf(settings))
-
-app = App(routes=routes, settings=settings)
+app = App(
+    routes=routes,
+    settings=settings,
+    components=[RedisConnection, CryptoAPI],
+)
 
 
 if __name__ == '__main__':
