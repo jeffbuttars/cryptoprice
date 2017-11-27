@@ -7,7 +7,7 @@ from apistar.frameworks.asyncio import ASyncIOApp as App
 from apistar.handlers import docs_urls, static_urls
 from settings import settings
 from index.index import routes as index_routes
-from redis_component import RedisConnection
+from backends import redis
 from slackbot.component import CryptoAPI
 from slackbot.app import routes as slackbot_routes
 
@@ -59,7 +59,8 @@ routes = [
 app = App(
     routes=routes,
     settings=settings,
-    components=[RedisConnection, CryptoAPI],
+    components=redis.components + [CryptoAPI],
+    commands=redis.commands
 )
 
 
