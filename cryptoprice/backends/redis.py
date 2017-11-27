@@ -8,6 +8,7 @@ class RedisBackend(object):
     Redis backend
     """
     def __init__(self, settings: Settings) -> None:
+        print('RedisBackend::__init__', settings)
         self._url = settings.get('REDIS', {}).get('URL')
         if not self._url:
             self._url = settings.get('CACHE', {}).get('URL')
@@ -16,22 +17,29 @@ class RedisBackend(object):
 
     @property
     def session(self):
+        print('RedisBackend::sessin', self._session)
         return self._session
 
     @property
     def url(self):
+        print('RedisBackend::url', self._url)
         return self._url
+
+    @property
+    def kwargs(self):
+        print('RedisBackend::kwargs', self._session.connection_pool.connection_kwargs)
+        return self._session.connection_pool.connection_kwargs
 
 
 def get_session(backend: RedisBackend) -> Redis:
     return backend.session
 
 
-def redis_cli(redis: Redis):
+def redis_cli(redis: RedisBackend):
     """
     Run the Redis cli with the project Redis connection settings
     """
-    kwargs = redis.connection_pool.connection_kwargs
+    kwargs = redis.kwargs
     {'db': 0, 'host': '127.0.0.1', 'password': None, 'port': 6379}
 
     db = ['-n', f"{kwargs.get('db', 0)}"]

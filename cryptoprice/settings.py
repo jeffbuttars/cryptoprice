@@ -16,6 +16,7 @@ class Env(environment.Environment):
         'VERIFICATION_TOKEN': typesystem.string(default='2514b2465e7448ecbdc55cff56b426b9'),
         'SLACK_BOT_TOKEN': typesystem.string(default='e544eb2e1cfb4abda385fb6e9b1e950e'),
         'SLACK_API_SCOPE': typesystem.string(default=''),
+        'SLACK_BOT_NAME': typesystem.string(default=''),
     }
 
 
@@ -30,8 +31,9 @@ settings = {
         'CLIENT_ID': env['CLIENT_ID'],
         'CLIENT_SECRET': env['CLIENT_SECRET'],
         'VERIFICATION_TOKEN': env['VERIFICATION_TOKEN'],
-        'SLACK_BOT_TOKEN': env['SLACK_BOT_TOKEN'],
-        'SLACK_API_SCOPE': env['SLACK_API_SCOPE'],
+        'BOT_TOKEN': env['SLACK_BOT_TOKEN'],
+        'API_SCOPE': env['SLACK_API_SCOPE'],
+        'BOT_NAME': env['SLACK_BOT_NAME'],
     },
     'TEMPLATES': {
         'ROOT_DIR': ['index/templates', 'slackbot/templates'],

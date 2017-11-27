@@ -1,2 +1,2 @@
-from .component import components, CryptoAPI  # noqa
+from .component import components, CryptoBot  # noqa
 from .app import routes  # noqa

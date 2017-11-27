@@ -2,31 +2,33 @@ import logging
 from pprint import pformat
 from apistar import http, Route, Settings, Response, render_template, annotate
 from apistar.renderers import HTMLRenderer
-from .component import CryptoAPI
+from .component import CryptoBot
 
 
 logger = logging.getLogger(__name__)
 
 
 @annotate(renderers=[HTMLRenderer()])
-async def install(settings: Settings):
+async def install(crypto_bot: CryptoBot):
     """This route renders the installation page with 'Add to Slack' button."""
     # Since we've set the client ID and scope on our Bot object, we can change
     # them more easily while we're developing our app.
     logger.debug("SLACK EVENT install")
-    client_id = settings.get('SLACK', {}).get('CLIENT_ID')
-    scope = settings.get('SLACK', {}).get('SLACK_API_BOT')
 
     # Our template is using the Jinja templating language to dynamically pass
     # our client id and scope
-    return render_template("install.html", client_id=client_id, scope=scope)
+    return render_template(
+        "install.html",
+        client_id=crypto_bot.oauth['client_id'],
+        scope=crypto_bot.oauth['scope']
+    )
 
 
-async def listening(slack_event: http.RequestData, crypto_api: CryptoAPI, settings: Settings):
+async def listening(slack_event: http.RequestData, crypto_bot: CryptoBot, settings: Settings):
     print("SLACK EVENT listening: %s" % pformat(slack_event))
     slack_event = slack_event or {}
     logger.debug("SLACK EVENT listening: %s", pformat(slack_event))
-    logger.debug("SLACK EVENT api: %s", crypto_api)
+    logger.debug("SLACK EVENT api: %s", crypto_bot)
 
     # ============= Slack URL Verification ============ #
     # In order to verify the url of our endpoint, Slack will send a challenge
@@ -39,7 +41,7 @@ async def listening(slack_event: http.RequestData, crypto_api: CryptoAPI, settin
     # ============ Slack Token Verification =========== #
     # We can verify the request is coming from Slack by checking that the
     # verification token in the request matches our app's settings
-    if settings.get('SLACK', {}).get('VERIFICATION_TOKEN') != slack_event.get("token"):
+    if crypto_bot.verification != slack_event.get("token"):
         # By adding "X-Slack-No-Retry" : 1 to our response headers, we turn off
         # Slack's automatic retries during development.
 
@@ -56,15 +58,8 @@ async def listening(slack_event: http.RequestData, crypto_api: CryptoAPI, settin
     # ====== Process Incoming Events from Slack ======= #
     # If the incoming request is an Event we've subcribed to
     if "event" in slack_event:
-        event_type = slack_event["event"]["type"]
-
-        # XXX Dispatch the event to our handler
-
-        return {
-                'message': 'Sweet!',
-                'event': slack_event,
-                'event_type': event_type,
-            }
+        return crypto_bot.dispatch_event(slack_event)
+        #  event_type = slack_event["event"]["type"]
 
     # If our bot hears things that are not events we've subscribed to,
     # send a quirky but helpful error response
@@ -80,7 +75,7 @@ async def listening(slack_event: http.RequestData, crypto_api: CryptoAPI, settin
 
 
 @annotate(renderers=[HTMLRenderer()])
-async def thanks(code: str=''):
+async def thanks(code: str, crypto_bot: CryptoBot):
     """
     This route is called by Slack after the user installs our app. It will
     exchange the temporary authorization code Slack sends for an OAuth token
@@ -91,7 +86,11 @@ async def thanks(code: str=''):
     # the request's parameters.
     logger.debug("SLACK EVENT thanks: %s", code)
     # The bot's auth method to handles exchanging the code for an OAuth token
-    #  pyBot.auth(code)
+    try:
+        crypto_bot.auth(code)
+    except Exception as e:
+        return Response('Unable to authenticate!: %s' % e, status=500)
+
     return render_template("thanks.html", code=code)
 
 
