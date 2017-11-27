@@ -1,12 +1,11 @@
 from apistar import Component
-from redis_component import RedisConnection
+from backends.redis import Redis
 from .crypto import CryptoWorld
 
 
-class Cryptoapi(object):
-    def __init__(self, rc: RedisConnection) -> None:
-        self._rc = rc.redis
-        self._cw = CryptoWorld(self._rc.redis)
+class CryptoAPI(object):
+    def __init__(self, redis: Redis) -> None:
+        self._cw = CryptoWorld(redis)
         self._cw.update()
 
     @property
@@ -14,4 +13,4 @@ class Cryptoapi(object):
         return self._cw
 
 
-CryptoAPI = Component(Cryptoapi)
+components = [Component(CryptoAPI)]

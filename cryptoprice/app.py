@@ -8,8 +8,7 @@ from apistar.handlers import docs_urls, static_urls
 from settings import settings
 from index.index import routes as index_routes
 from backends import redis
-from slackbot.component import CryptoAPI
-from slackbot.app import routes as slackbot_routes
+import slackbot
 
 
 # Set up the logger
@@ -51,7 +50,7 @@ logger.addHandler(logger_ch)
 
 routes = [
     Include('', index_routes),
-    Include('', slackbot_routes),
+    Include('', slackbot.routes),
     Include('/static', static_urls),
     Include('/docs', docs_urls),
 ]
@@ -59,7 +58,7 @@ routes = [
 app = App(
     routes=routes,
     settings=settings,
-    components=redis.components + [CryptoAPI],
+    components=redis.components + slackbot.components,
     commands=redis.commands
 )
 
