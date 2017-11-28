@@ -25,6 +25,10 @@ async def install(crypto_bot: CryptoBot):
 
 
 async def listening(slack_event: http.RequestData, crypto_bot: CryptoBot, settings: Settings):
+    """
+    The Slack API event handler.
+    Also handles the Slack challenge request.
+    """
     print("SLACK EVENT listening: %s" % pformat(slack_event))
     slack_event = slack_event or {}
     logger.debug("SLACK EVENT listening: %s", pformat(slack_event))

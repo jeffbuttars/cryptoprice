@@ -17,8 +17,11 @@ authed_teams = {}
 
 
 class CryptoBot(object):
-    def __init__(self, redis: Redis, settings: Settings, emoji=':robot_face:') -> None:
+    def __init__(self, redis: Redis, settings: Settings) -> None:
+        logger.debug("CryptoBot::__init__")
+
         self._name = settings.get('SLACK', {}).get('BOT_NAME')
+        self._emoji = ':robot_face:'
         self._verification = settings.get('SLACK', {}).get('VERIFICATION_TOKEN')
         self._oauth = {
             'client_id': settings.get('SLACK', {}).get('CLIENT_ID'),
@@ -143,4 +146,4 @@ class CryptoBot(object):
         return Response(message, 200, headers={"X-Slack-No-Retry": '1'})
 
 
-components = [Component(CryptoBot)]
+components = [Component(CryptoBot, init=CryptoBot)]

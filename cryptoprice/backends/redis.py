@@ -1,6 +1,12 @@
 import subprocess
-from redis import Redis
+import redis
+from redis.exceptions import ConnectionError
 from apistar import Command, Component, Settings
+import logging
+
+
+logger = logging.getLogger(__name__)
+Redis = redis.Redis
 
 
 class RedisBackend(object):
@@ -8,17 +14,27 @@ class RedisBackend(object):
     Redis backend
     """
     def __init__(self, settings: Settings) -> None:
-        print('RedisBackend::__init__', settings)
+        logger.debug('RedisBackend::__init__:')
+
         self._url = settings.get('REDIS', {}).get('URL')
+
         if not self._url:
             self._url = settings.get('CACHE', {}).get('URL')
 
-        self._session = Redis.from_url(self._url)
+        self._pool = redis.ConnectionPool.from_url(self._url)
+
+        try:
+            session = Redis(connection_pool=self._pool)
+            resp = session.ping()
+            logger.debug("Redis ping: %s", resp)
+        except ConnectionError as e:
+            logger.error("Redis Connection Error: %s", e)
 
     @property
     def session(self):
-        print('RedisBackend::sessin', self._session)
-        return self._session
+        _session = Redis(connection_pool=self._pool)
+        print('RedisBackend::session', _session)
+        return _session
 
     @property
     def url(self):
@@ -27,8 +43,8 @@ class RedisBackend(object):
 
     @property
     def kwargs(self):
-        print('RedisBackend::kwargs', self._session.connection_pool.connection_kwargs)
-        return self._session.connection_pool.connection_kwargs
+        print('RedisBackend::kwargs', self._pool.connection_kwargs)
+        return self._pool.connection_kwargs
 
 
 def get_session(backend: RedisBackend) -> Redis:
@@ -58,7 +74,7 @@ def redis_cli(redis: RedisBackend):
 
 
 components = [
-    Component(RedisBackend),
+    Component(RedisBackend, init=RedisBackend),
     Component(Redis, init=get_session, preload=False),
 ]
 

@@ -12,3 +12,17 @@ VC_VENV_NEW_SHELL='false'
 
 # PIPENV_VENV_IN_PROJECT
 export PIPENV_VENV_IN_PROJECT=.venv
+
+export PYTHON_ENV="${PYTHON_ENV:-debug}"
+
+if [[ -f ./.env.sh ]]; then
+    source ./.env.sh
+fi
+
+if [[ "$PYTHON_ENV" == 'debug' ]]; then
+    if [[ -f ./.env-dev.sh ]]; then
+        source ./.env-dev.sh
+    fi
+elif [[ -f ./.env-prod.sh ]]; then
+    source ./.env-prod.sh
+fi

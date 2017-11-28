@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-import os
 import datetime
 import requests
 import logging
 import json
-import redis
 
 
 logger = logging.getLogger(__name__)
@@ -138,6 +136,8 @@ class CryptoWorld(object):
         if resp.status_code != requests.codes.ok:
             resp.raise_for_status()
 
+        #  logger.debug("_get_cached NEW DATA\n%s : %s", key, pformat(resp.json()))
+
         self._redis_db.setex(key, resp.content, self._data_expire)
         logger.debug("_get_cached UPDATED")
 
@@ -145,18 +145,16 @@ class CryptoWorld(object):
 
     def update_global(self):
         # Get the global market data
-        logger.info("Fetching global info...")
+        logger.debug("Fetching global info...")
 
         g_data = self._get_cached(self.REDIS_KEY_GLOBAL, GLOBAL_URL)
-
         self._global = g_data
-        logger.info("Fetched global info %s", self._global)
 
         return self
 
     def update_ticker(self):
         # Get all price data for all currencies
-        logger.info("Fetching ticker info...")
+        logger.debug("Fetching ticker info...")
 
         t_data = self._get_cached(self.REDIS_KEY_TICKER, f'{TICKER_URL}', params={'limit': 0})
 
@@ -203,24 +201,26 @@ class CryptoWorld(object):
         ) + '\n'.join(f'{bc}' for bc in self._by_id.values())
 
 
-def main():
-    # Set up the logger
-    logger = logging.getLogger(__name__)
-    # Use a console handler, set it to debug by default
-    logger_ch = logging.StreamHandler()
-    logger.setLevel(logging.DEBUG)
-    log_formatter = logging.Formatter(('%(levelname)s: %(asctime)s %(processName)s:%(process)d'
-                                       ' %(filename)s:%(lineno)s %(module)s::%(funcName)s()'
-                                       ' -- %(message)s'))
-    logger_ch.setFormatter(log_formatter)
-    logger.addHandler(logger_ch)
+#  def main():
+#      import os
+#      import redis
+#      from pprint import pformat
+#      # Set up the logger
+#      logger = logging.getLogger(__name__)
+#      # Use a console handler, set it to debug by default
+#      logger_ch = logging.StreamHandler()
+#      logger.setLevel(logging.DEBUG)
+#      log_formatter = logging.Formatter(('%(levelname)s: %(asctime)s %(processName)s:%(process)d'
+#                                         ' %(filename)s:%(lineno)s %(module)s::%(funcName)s()'
+#                                         ' -- %(message)s'))
+#      logger_ch.setFormatter(log_formatter)
+#      logger.addHandler(logger_ch)
 
-    redis_db = redis.Redis.from_url(os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0'))
+#      redis_db = redis.Redis.from_url(os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0'))
 
-    cw = CryptoWorld(redis_db)
-    cw.update()
-    print(f'CryptoWorld:\n{cw}')
+#      cw = CryptoWorld(redis_db)
+#      cw.update()
 
 
-if __name__ == '__main__':
-    main()
+#  if __name__ == '__main__':
+#      main()
