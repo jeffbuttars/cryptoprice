@@ -23,7 +23,15 @@ class Env(environment.Environment):
 env = Env()
 
 
+#  'URL': 'postgresql://cryptoprice:cryptoprice@localhost/cryptoprice'
 settings = {
+    'DATABASE': {
+        'NAME': 'cryptoprice',
+        'USER': 'cryptoprice',
+        'PASSWORD': 'cryptoprice',
+        #  'URL': 'postgresql://cryptoprice:cryptoprice@localhost/cryptoprice'
+
+    },
     'CACHE': {
         'URL': env['REDIS_URL'],
     },

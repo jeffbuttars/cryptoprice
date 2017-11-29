@@ -1,5 +1,6 @@
 import logging
 from pprint import pformat
+from asyncpg import Connection
 from apistar import http, Route, Settings, Response, render_template, annotate, reverse_url
 from apistar.renderers import HTMLRenderer
 from .component import CryptoBot
@@ -99,8 +100,25 @@ async def thanks(code: str, crypto_bot: CryptoBot):
     return render_template("thanks.html", code=code)
 
 
+async def dbtest(self, connection: Connection):
+    conn_str = ''
+    data = None
+
+    async with connection as conn:
+        conn_str = dir(conn)
+        data = await conn.fetch('SELECT * FROM team')
+
+    return {
+        'message': 'dbtest',
+        'connection': dir(connection),
+        'conn': conn_str,
+        'data': data,
+    }
+
+
 routes = [
     Route('/listening', 'POST', listening),
     Route('/thanks', 'GET', thanks),
     Route('/install', 'GET', install),
+    Route('/dbtest', 'GET', dbtest),
 ]

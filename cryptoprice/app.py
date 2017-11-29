@@ -8,7 +8,7 @@ from apistar.handlers import docs_urls, static_urls
 from settings import settings
 from local_utils import print_routes, print_settings
 from index.index import routes as index_routes
-from backends import redis
+from backends import redis, asyncpg
 import slackbot
 
 
@@ -60,7 +60,7 @@ routes = [
 ]
 
 
-components = slackbot.components + redis.components
+components = slackbot.components + redis.components + asyncpg.components
 
 
 if settings.get('DEBUG'):
@@ -75,7 +75,7 @@ app = App(
     routes=routes,
     settings=settings,
     components=components,
-    commands=redis.commands
+    commands=redis.commands + asyncpg.commands
 )
 
 
