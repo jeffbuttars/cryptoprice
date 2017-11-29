@@ -1,6 +1,6 @@
 import logging
 from pprint import pformat
-from apistar import http, Route, Settings, Response, render_template, annotate
+from apistar import http, Route, Settings, Response, render_template, annotate, reverse_url
 from apistar.renderers import HTMLRenderer
 from .component import CryptoBot
 
@@ -20,7 +20,8 @@ async def install(crypto_bot: CryptoBot):
     return render_template(
         "install.html",
         client_id=crypto_bot.oauth['client_id'],
-        scope=crypto_bot.oauth['scope']
+        scope=crypto_bot.oauth['scope'],
+        redirect_uri=reverse_url('thanks'),
     )
 
 
@@ -99,7 +100,7 @@ async def thanks(code: str, crypto_bot: CryptoBot):
 
 
 routes = [
-    Route('/listening', 'POST', listening, name='listening'),
+    Route('/listening', 'POST', listening),
     Route('/thanks', 'GET', thanks),
     Route('/install', 'GET', install),
 ]

@@ -13,6 +13,7 @@ gunicorn = "*"
 redis = "*"
 slackclient = "*"
 apistar = {extras = ["asyncio"]}
+asyncpg = "*"
 
 
 [dev-packages]
