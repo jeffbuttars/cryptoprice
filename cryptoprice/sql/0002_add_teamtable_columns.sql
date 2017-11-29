@@ -2,6 +2,7 @@
 ALTER TABLE IF EXISTS team
 ADD COLUMN IF NOT EXISTS slack_id varchar(32),
 ADD COLUMN IF NOT EXISTS access_token varchar(128),
+ADD COLUMN IF NOT EXISTS bot_access_token varchar(128),
 ADD COLUMN IF NOT EXISTS name varchar(64),
 ADD COLUMN IF NOT EXISTS auth jsonb,
 

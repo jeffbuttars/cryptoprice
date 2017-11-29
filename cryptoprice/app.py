@@ -7,7 +7,7 @@ from apistar.frameworks.asyncio import ASyncIOApp as App
 from apistar.handlers import docs_urls, static_urls
 from settings import settings
 from local_utils import print_routes, print_settings
-from index.index import routes as index_routes
+#  from index.index import routes as index_routes
 from backends import redis, asyncpg
 import slackbot
 
@@ -53,7 +53,7 @@ logger = logging.getLogger()
 #      }
 
 routes = [
-    Include('', index_routes),
+    #  Include('', index_routes),
     Include('', slackbot.routes),
     Include('/static', static_urls),
     Include('/docs', docs_urls),

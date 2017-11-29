@@ -15,6 +15,9 @@ slackclient = "*"
 apistar = {extras = ["asyncio"]}
 asyncpg = "*"
 asyncio-contextmanager = "*"
+aiohttp = "*"
+aiodns = "*"
+cchardet = "*"
 
 
 [dev-packages]

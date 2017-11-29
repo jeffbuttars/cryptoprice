@@ -21,7 +21,6 @@ class AsyncPgBackend(object):
     }
 
     def __init__(self, settings: Settings) -> None:
-        #  self._conn = await asyncpg.connect()
         self._config = settings.get('DATABASE')
         self._url = self._config.get('URL')
         self._pool = None
@@ -47,9 +46,15 @@ class AsyncPgBackend(object):
 
         return self._pool
 
-    async def conn(self):
+    async def fetch(self, *args, **kwargs):
         pool = await self.pool()
-        return await pool.acquire()
+
+        async with pool.acquire() as conn:
+            try:
+                return await conn.fetch(*args, **kwargs)
+            except Exception as e:
+                logger.error("AsyncPgBackend fetch error: %s", e)
+                raise
 
     @property
     def url(self):
@@ -67,13 +72,19 @@ async def get_conn(backend: AsyncPgBackend) -> typing.Generator[Connection, None
     """
     pool = await backend.pool()
     conn = await pool.acquire()
+    logger.debug("asyncpg get_conn pool: %s, conn: %s", pool, conn)
 
     try:
+        logger.debug("YIELDING conn")
         yield conn
-    except Exception:
+        logger.debug("YIELDING done")
+    except Exception as e:
+        logger.error("AsyncPG Error: %s", e)
         raise
     finally:
-        pool.release(conn)
+        logger.debug("RELEASING pool")
+        await pool.release(conn)
+        logger.debug("RELEASED pool")
 
 
 def pg_cli(backend: AsyncPgBackend):

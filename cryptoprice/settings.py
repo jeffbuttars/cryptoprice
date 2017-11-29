@@ -17,6 +17,7 @@ class Env(environment.Environment):
         'SLACK_BOT_TOKEN': typesystem.string(default='e544eb2e1cfb4abda385fb6e9b1e950e'),
         'SLACK_API_SCOPE': typesystem.string(default=''),
         'SLACK_BOT_NAME': typesystem.string(default=''),
+        'SLACK_BOT_OAUTH_REDIR': typesystem.string(default=''),
     }
 
 
@@ -42,6 +43,7 @@ settings = {
         'BOT_TOKEN': env['SLACK_BOT_TOKEN'],
         'API_SCOPE': env['SLACK_API_SCOPE'],
         'BOT_NAME': env['SLACK_BOT_NAME'],
+        'BOT_OAUTH_REDIR': env['SLACK_BOT_OAUTH_REDIR'],
     },
     'TEMPLATES': {
         'ROOT_DIR': ['index/templates', 'slackbot/templates'],
