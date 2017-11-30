@@ -1,9 +1,27 @@
 import logging
+import json
+from uuid import UUID
 from pprint import pformat as pf
-from apistar import environment, typesystem
+from apistar import environment, typesystem, http
+from apistar.renderers import JSONRenderer
 
 
 logger = logging.getLogger(__name__)
+
+
+class SmarterJSONRenderer(JSONRenderer):
+    def _default(self, obj):
+        if isinstance(obj, UUID):
+            return str(obj)
+
+        if hasattr(obj, 'isoformat'):
+            return obj.isoformat()
+
+        return json.JSONEncoder().encode(obj)
+
+    def render(self, data: http.ResponseData) -> bytes:
+        print('REDNER SELF', self, data)
+        return json.dumps(data, default=self._default).encode('utf-8')
 
 
 class Env(environment.Environment):
@@ -35,6 +53,8 @@ settings = {
     },
     'CACHE': {
         'URL': env['REDIS_URL'],
+        'MIN_POOL': 2,
+        'MAX_POOL': 8,
     },
     'SLACK': {
         'CLIENT_ID': env['CLIENT_ID'],
@@ -49,6 +69,7 @@ settings = {
         'ROOT_DIR': ['index/templates', 'slackbot/templates'],
         'PACKAGE_DIRS': ['apistar'],
     },
+    'RENDERERS': [SmarterJSONRenderer()],
     'DEBUG': env['DEBUG'] or env['PYTHON_DEBUG']
 }
 

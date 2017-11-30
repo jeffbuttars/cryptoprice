@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+#  from pprint import pformat
 import datetime
-import requests
 import logging
 import json
 
@@ -32,9 +32,10 @@ class Blockchain(object):
         "last_updated": "1472762067"
     },
     """
-    def __init__(self, data={}):
+    def __init__(self, client, data={}):
         self._ts = datetime.datetime.utcnow()
         self._data = data
+        self._client = client
 
     def __getitem__(self, key):
         return self._data.get(key)
@@ -91,8 +92,10 @@ class CryptoWorld(object):
     REDIS_KEY_GLOBAL = 'coin_global'
     REDIS_KEY_TICKER = 'coin_ticker'
 
-    def __init__(self, redis_db, data_expire=600):
+    def __init__(self, redis_db, client, data_expire=600):
+        logger.debug("CryptoWorld __init__ redis: %s, client: %s", redis_db, client)
         self._redis_db = redis_db
+        self._client = client
         self._data_expire = data_expire
         self._global = {}
         self._by_symbol = {}
@@ -122,41 +125,44 @@ class CryptoWorld(object):
     def last_updated(self):
         return datetime.utcfromtimestamp(int(self._global.get('last_updated', 0)))
 
-    def _get_cached(self, key, url, params={}):
+    async def _get_cached(self, key, url, params={}):
         logger.debug("_get_cached %s, %s, %s", key, url, params)
-        data = self._redis_db.get(key)
+        data = await self._redis_db.exec('get', key)
 
         if data:
             logger.debug("_get_cached HIT")
             return json.loads(data)
 
         logger.debug("_get_cached MISS")
-        resp = requests.get(url, params=params)
+        resp = await self._client.get(url, params=params)
 
-        if resp.status_code != requests.codes.ok:
+        if resp.status != 200:
             resp.raise_for_status()
 
-        #  logger.debug("_get_cached NEW DATA\n%s : %s", key, pformat(resp.json()))
+        data = await resp.text()
 
-        self._redis_db.setex(key, resp.content, self._data_expire)
+        await self._redis_db.exec('setex', key, data, self._data_expire)
+
         logger.debug("_get_cached UPDATED")
+        data = json.loads(data)
+        #  logger.debug("_get_cached NEW DATA\n%s : %s", key, pformat(data))
 
-        return resp.json()
+        return data
 
-    def update_global(self):
+    async def update_global(self):
         # Get the global market data
         logger.debug("Fetching global info...")
 
-        g_data = self._get_cached(self.REDIS_KEY_GLOBAL, GLOBAL_URL)
+        g_data = await self._get_cached(self.REDIS_KEY_GLOBAL, GLOBAL_URL)
         self._global = g_data
 
         return self
 
-    def update_ticker(self):
+    async def update_ticker(self):
         # Get all price data for all currencies
         logger.debug("Fetching ticker info...")
 
-        t_data = self._get_cached(self.REDIS_KEY_TICKER, f'{TICKER_URL}', params={'limit': 0})
+        t_data = await self._get_cached(self.REDIS_KEY_TICKER, f'{TICKER_URL}', params={'limit': 0})
 
         for bcd in t_data:
             bc = Blockchain(bcd)
@@ -172,9 +178,10 @@ class CryptoWorld(object):
         self.update_ticker()
         return self._by_id.get(bc_id.lower())
 
-    def update(self):
-        self.update_global()
-        self.update_ticker()
+    async def update(self):
+        logger.debug("CryptoWorld update...")
+        await self.update_global()
+        await self.update_ticker()
 
     def fuzzy_match(self, tokens):
         symbols = set(tokens) & set(self._by_symbol.keys())
@@ -199,28 +206,3 @@ class CryptoWorld(object):
             f'Active Currencies\t{self.active_currencies}\n'
             f'Active Markets\t\t{self.active_markets}\n'
         ) + '\n'.join(f'{bc}' for bc in self._by_id.values())
-
-
-#  def main():
-#      import os
-#      import redis
-#      from pprint import pformat
-#      # Set up the logger
-#      logger = logging.getLogger(__name__)
-#      # Use a console handler, set it to debug by default
-#      logger_ch = logging.StreamHandler()
-#      logger.setLevel(logging.DEBUG)
-#      log_formatter = logging.Formatter(('%(levelname)s: %(asctime)s %(processName)s:%(process)d'
-#                                         ' %(filename)s:%(lineno)s %(module)s::%(funcName)s()'
-#                                         ' -- %(message)s'))
-#      logger_ch.setFormatter(log_formatter)
-#      logger.addHandler(logger_ch)
-
-#      redis_db = redis.Redis.from_url(os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0'))
-
-#      cw = CryptoWorld(redis_db)
-#      cw.update()
-
-
-#  if __name__ == '__main__':
-#      main()

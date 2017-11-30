@@ -1,81 +1,85 @@
 import subprocess
-import redis
-from redis.exceptions import ConnectionError
+import asyncio
+import aioredis
 from apistar import Command, Component, Settings
 import logging
 
 
 logger = logging.getLogger(__name__)
-Redis = redis.Redis
+loop = asyncio.get_event_loop()
 
 
-class RedisBackend(object):
+class Redis(object):
     """
     Redis backend
     """
     def __init__(self, settings: Settings) -> None:
-        logger.debug('RedisBackend::__init__:')
+        logger.debug('Redis::__init__:')
 
-        self._url = settings.get('REDIS', {}).get('URL')
+        c_key = 'REDIS'
+        if not settings.get(c_key, {}).get('URL'):
+            c_key = 'CACHE'
 
-        if not self._url:
-            self._url = settings.get('CACHE', {}).get('URL')
+        self._config = settings.get(c_key, {})
 
-        self._pool = redis.ConnectionPool.from_url(self._url)
+        self._url = self._config.get('URL')
+        self._min_pool = self._config.get('MIN_POOL', 1)
+        self._max_pool = self._config.get('MAX_POOL', 8)
 
-        try:
-            session = Redis(connection_pool=self._pool)
-            resp = session.ping()
-            logger.debug("Redis ping: %s", resp)
-        except ConnectionError as e:
-            logger.error("Redis Connection Error: %s", e)
+        self._pool = loop.run_until_complete(aioredis.create_pool(self._url))
+
+        logger.debug('Redis::__init__: pool %s', self._pool)
+
+    async def exec(self, *args, **kwargs):
+        logger.debug('Redis::exec: %s %s', args, kwargs)
+        return await self._pool.execute(*args, **kwargs)
+
+    async def conn_info(self):
+        logger.debug('Redis::conn_info')
+
+        with await self._pool as conn:
+            return {
+                'address': conn.address,
+                'db': conn.db,
+            }
 
     @property
-    def session(self):
-        _session = Redis(connection_pool=self._pool)
-        print('RedisBackend::session', _session)
-        return _session
+    def config(self):
+        return self._config.copy()
 
     @property
     def url(self):
-        print('RedisBackend::url', self._url)
+        print('Redis::url', self._url)
         return self._url
 
     @property
     def kwargs(self):
-        print('RedisBackend::kwargs', self._pool.connection_kwargs)
+        print('Redis::kwargs', self._pool.connection_kwargs)
         return self._pool.connection_kwargs
 
 
-def get_session(backend: RedisBackend) -> Redis:
-    return backend.session
-
-
-def redis_cli(redis: RedisBackend):
+def redis_cli(redis_cache: Redis):
     """
     Run the Redis cli with the project Redis connection settings
     """
-    kwargs = redis.kwargs
-    {'db': 0, 'host': '127.0.0.1', 'password': None, 'port': 6379}
+    conn_info = loop.run_until_complete(redis_cache.conn_info())
 
-    db = ['-n', f"{kwargs.get('db', 0)}"]
-    host = ['-h', kwargs.get('host', '127.0.0.1')]
-    port = ['-p', f"{kwargs.get('port', 6379)}"]
-    password = []
+    args = ['redis-cli', '-n', f"{conn_info.get('db', 0)}"]
 
-    if kwargs.get('password'):
-        password += ['-a', kwargs.get('password')]
+    if isinstance(conn_info['address'], str):
+        args += ['-s', conn_info['address']]
+    else:
+        args += ['-h', conn_info['address'][0], '-p', str(conn_info['address'][1])]
 
-    print('REDIS CLI:', ['redis-cli'] + host + password + port + db)
+    if redis_cache.config.get('password'):
+        args += ['-a', redis_cache.config.get('password')]
 
-    subprocess.call(
-        ['redis-cli'] + host + password + port + db
-    )
+    logger.debug('REDIS CLI: %s', ' '.join(args))
+    subprocess.call(args)
 
 
 components = [
-    Component(RedisBackend, init=RedisBackend),
-    Component(Redis, init=get_session, preload=False),
+    Component(Redis, init=Redis),
 ]
 
 commands = [

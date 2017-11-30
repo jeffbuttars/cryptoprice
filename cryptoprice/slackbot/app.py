@@ -1,8 +1,9 @@
 import logging
 from pprint import pformat
 from asyncpg import Connection
-from apistar import http, Route, Settings, Response, render_template, annotate, reverse_url
+from apistar import http, Route, Settings, Response, render_template, annotate
 from apistar.renderers import HTMLRenderer
+from settings import settings
 from .component import CryptoBot
 
 
@@ -94,7 +95,7 @@ async def thanks(code: str, state: str, crypto_bot: CryptoBot, request: http.Req
 
     # The bot's auth method to handles exchanging the code for an OAuth token
     try:
-        crypto_bot.auth(code, crypto_bot.redir_uri(request))
+        await crypto_bot.auth(code, crypto_bot.redir_uri(request))
     except Exception as e:
         logger.error("OAuth error: %s", e)
         return Response('Unable to authenticate!: %s' % e, status=500)
@@ -102,28 +103,33 @@ async def thanks(code: str, state: str, crypto_bot: CryptoBot, request: http.Req
     return render_template("thanks.html", code=code)
 
 
-async def dbtest(self, connection: Connection):
-    conn_str = ''
+async def dbtest(self, connection: Connection, crypto_bot: CryptoBot,):
     data = None
 
     async with connection as conn:
-        conn_str = dir(conn)
         data = await conn.fetch('SELECT * FROM team')
 
     data = [dict(d) for d in data]
     logger.debug("dbtest got %s", data)
 
+    debug = {
+        'connection': str(connection),
+        'crypto_bot': str(crypto_bot),
+    }
+
     return {
         'message': 'dbtest',
-        'connection': dir(connection),
-        'conn': conn_str,
+        'debug': debug,
         'data': data,
     }
+
 
 
 routes = [
     Route('/', 'GET', install),
     Route('/listening', 'POST', listening),
     Route('/thanks', 'GET', thanks),
-    Route('/dbtest', 'GET', dbtest),
 ]
+
+if settings.get('DEBUG'):
+    routes += [Route('/dbtest', 'GET', dbtest)]

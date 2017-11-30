@@ -8,16 +8,16 @@ name = "pypi"
 [packages]
 
 flask = "*"
-requests = "*"
 gunicorn = "*"
 redis = "*"
-slackclient = "*"
 apistar = {extras = ["asyncio"]}
 asyncpg = "*"
 asyncio-contextmanager = "*"
 aiohttp = "*"
 aiodns = "*"
 cchardet = "*"
+requests = "*"
+aioredis = "*"
 
 
 [dev-packages]

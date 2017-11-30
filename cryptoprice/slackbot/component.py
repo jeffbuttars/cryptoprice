@@ -1,9 +1,9 @@
 import string
-import aiohttp
-from slackclient import SlackClient
+import asyncio
 from apistar import Component, Settings, Response, reverse_url
 from backends.redis import Redis
 from backends.asyncpg import AsyncPgBackend
+from aioclient.client import Client
 from .crypto import CryptoWorld
 import logging
 
@@ -19,11 +19,16 @@ authed_teams = {}
 
 
 class CryptoBot(object):
-    def __init__(self, redis: Redis, settings: Settings, asyncpg: AsyncPgBackend) -> None:
+    def __init__(self,
+                 redis: Redis,
+                 settings: Settings,
+                 asyncpg: AsyncPgBackend,
+                 client: Client) -> None:
         logger.debug("CryptoBot::__init__")
 
         self._config = settings.get('SLACK', {})
         self._asyncpg = asyncpg
+        self._client = client
 
         self._name = self._config.get('BOT_NAME')
         self._emoji = ':robot_face:'
@@ -34,10 +39,16 @@ class CryptoBot(object):
             'scope': self._config.get('API_SCOPE'),
         }
 
-        self._client = SlackClient(self._config.get('BOT_TOKEN'))
+        self._cw = CryptoWorld(redis, client)
 
-        self._cw = CryptoWorld(redis)
-        self._cw.update()
+        # Get the global async loop and have it run update to pre-heat
+        # the cache of price data.
+        loop = asyncio.get_event_loop()
+        logger.debug("CryptoBot::__init__ loop: %s", loop)
+        task = loop.create_task(self._cw.update())
+        logger.debug("CryptoBot::__init__ update task: %s, waiting...", task)
+        loop.wait(task)
+        logger.debug("CryptoBot::__init__ update done.")
 
     @property
     def api(self):
@@ -60,10 +71,6 @@ class CryptoBot(object):
         return self._oauth
 
     @property
-    def client(self):
-        return self._client
-
-    @property
     def config(self):
         return self._config.copy()
 
@@ -82,7 +89,7 @@ class CryptoBot(object):
 
         return f'{redir_base}{reverse_url("thanks")}'
 
-    def auth(self, code, redirect_uri):
+    async def auth(self, code, redirect_uri):
         """
         Authenticate with OAuth and assign correct scopes.
         Save a dictionary of authed team information in memory on the bot
@@ -99,42 +106,44 @@ class CryptoBot(object):
         # Slack returns a temporary authorization code that we'll exchange for
         # an OAuth token using the oauth.access endpoint
 
-        #  data = {
-        #      'client_id': self.oauth["client_id"],
-        #      'client_secret': self.oauth["client_secret"],
-        #      'code': code,
-        #      'redirect_uri': redirect_uri,
-        #  }
+        data = {
+            'client_id': self.oauth["client_id"],
+            'client_secret': self.oauth["client_secret"],
+            'code': code,
+            'redirect_uri': redirect_uri,
+        }
 
-        #  async with ClientSession() as session:
-        #      async with session.post(
-        #          'https://slack.com/api/oauth.access',
-        #          headers=headers,
-        #          data=data,
-        #      )
-        auth_response = self.client.api_call(
-                                "oauth.access",
-                                client_id=self.oauth["client_id"],
-                                client_secret=self.oauth["client_secret"],
-                                code=code,
-                                redirect_uri=redirect_uri,
-                                )
+        resp = await self._client.post('https://slack.com/api/oauth.access', data=data)
+        logger.debug("OAuth auth response %s", resp)
 
-        logger.debug("OAuth auth response %s", auth_response)
-
-        if auth_response.get('error'):
-            raise ValueError('OAuth error: %s' % auth_response.get('error'))
+        if resp.status != 200:
+            resp.raise_for_status()
+            # FYI: Will not always raise for status
+            return
 
         # To keep track of authorized teams and their associated OAuth tokens,
         # we will save the team ID and bot tokens to the global
         # authed_teams object
-        team_id = auth_response["team_id"]
-        authed_teams[team_id] = {"bot_token":
-                                 auth_response["bot"]["bot_access_token"]}
+        r_data = await resp.json()
+        team_id = r_data["team_id"]
+        bot_token = r_data["bot"]["bot_access_token"]
+        token = r_data["access_token"]
+        name = r_data["team_name"]
 
-        # Then we'll reconnect to the Slack Client with the correct team's
-        # bot token
-        self.client = SlackClient(authed_teams[team_id]["bot_token"])
+        insert = await self._asyncpg.exec(
+            """INSERT INTO team
+                (slack_id, access_token, bot_access_token, name, auth)
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (slack_id)
+                DO UPDATE SET (access_token, bot_access_token, name, auth) =
+                    (
+                    EXCLUDED.access_token, EXCLUDED.bot_access_token,
+                    EXCLUDED.name, EXCLUDED.auth
+                    )
+            """,
+            team_id, token, bot_token, name, r_data)
+
+        logger.debug("SlackBot oauth complete for team %s, %s", team_id, insert)
 
     async def send_price_message(self, team_id, user_id, channel_id, message):
         """
@@ -179,16 +188,16 @@ class CryptoBot(object):
         }
 
         logger.debug("send_price sending message %s", resp_str)
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
+        resp = self._client.post(
                 'https://slack.com/api/chat.postMessage',
                 headers=headers,
                 json=data,
-            ) as resp:
-                logger.debug('send_price_message resp: %s', resp)
-                if resp.status != 200:
-                    logger.error('problem while posting slack message. %s', resp)
-                    return ''
+        )
+
+        logger.debug('send_price_message resp: %s', resp)
+        if resp.status != 200:
+            logger.error('problem while posting slack message. %s', resp)
+            return ''
 
         return resp_str
 

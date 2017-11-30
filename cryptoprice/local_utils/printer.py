@@ -27,3 +27,17 @@ def print_settings(settings, printer=None):
     printer = printer or logger.debug
 
     printer("Settings:\n%s", pformat(settings))
+
+
+def print_components(components, printer=None):
+    printer = printer or logger.debug
+
+    printer("Components:")
+
+    for comp in components:
+        s = f" preload: {str(comp.preload):<5} init: {comp.init}"
+
+        if hasattr(comp, 'cls'):
+            printer(f"  {comp.cls.__name__:<16}{s}")
+        else:
+            printer(f"  {comp:<16}{s}")

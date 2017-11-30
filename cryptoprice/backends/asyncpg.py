@@ -56,6 +56,16 @@ class AsyncPgBackend(object):
                 logger.error("AsyncPgBackend fetch error: %s", e)
                 raise
 
+    async def exec(self, *args, **kwargs):
+        pool = await self.pool()
+
+        async with pool.acquire() as conn:
+            try:
+                return await conn.execute(*args, **kwargs)
+            except Exception as e:
+                logger.error("AsyncPgBackend exec error: %s", e)
+                raise
+
     @property
     def url(self):
         return self._url
