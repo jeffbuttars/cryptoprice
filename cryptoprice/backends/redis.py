@@ -1,3 +1,4 @@
+from urllib.parse import urlparse
 import subprocess
 import asyncio
 import aioredis
@@ -13,29 +14,67 @@ class Redis(object):
     Redis backend
     """
     def __init__(self, settings: Settings) -> None:
+        """
+        Initialize the Redis connection pool and provide a simple
+        interface to Redis connections.
+        NOTE: The connection pool is established and tested in a blocking fashion.
+
+        XXX(jeff) Update settings to be more flexible and parse
+        out the URL if needed for the cli.
+        """
         logger.debug('Redis::__init__:')
 
-        c_key = 'REDIS'
-        if not settings.get(c_key, {}).get('URL'):
-            c_key = 'CACHE'
-
-        self._config = settings.get(c_key, {})
+        self._config = settings.get('REDIS', {})
 
         self._url = self._config.get('URL')
         self._min_pool = self._config.get('MIN_POOL', 1)
         self._max_pool = self._config.get('MAX_POOL', 8)
 
-        # Get the loop and establish our connection pool
         logger.debug('Redis::__init__: creating pool...')
         loop = asyncio.get_event_loop()
-        task = loop.create_task(aioredis.create_pool(self._url))
-        logger.debug('Redis::__init__: creating pool task: %s', task)
-        self._pool = asyncio.wait(task)
-        logger.debug('Redis::__init__: pool %s', self._pool)
+        loop.run_until_complete(self._connect())
+
+    async def _connect(self):
+        try:
+            logger.debug('Creating pool...')
+
+            address, config = self._build_config()
+            self._pool = await aioredis.create_pool(address, **config)
+            logger.debug('Connection pool %s', self._pool)
+
+            ping = await self._pool.execute('ping')
+            logger.debug('Connection ping %s', ping)
+        except Exception as e:
+            logger.error("Redis connection error: %s", e)
+            raise
+
+        return self._pool
+
+    def _build_config(self):
+        url = urlparse(self._url)
+
+        # Remove query strings.
+        path = url.path[1:]
+        path = path.split('?', 2)[0]
+
+        config = {
+            "db": int(path or 0),
+            "password": url.password or None,
+            'minsize': self._min_pool,
+            'maxsize': self._max_pool,
+        }
+
+        address = (url.hostname or "localhost", int(url.port or 6379))
+
+        return (address, config)
 
     async def exec(self, *args, **kwargs):
         logger.debug('Redis::exec: %s %s', args, kwargs)
-        return await self._pool.execute(*args, **kwargs)
+
+        try:
+            return await self._pool.execute(*args, **kwargs)
+        except Exception as e:
+            logger.error("Redis exec error: %s", e)
 
     async def conn_info(self):
         logger.debug('Redis::conn_info')
@@ -48,17 +87,10 @@ class Redis(object):
 
     @property
     def config(self):
+        """
+        Return a copy of the current Redis config.
+        """
         return self._config.copy()
-
-    @property
-    def url(self):
-        print('Redis::url', self._url)
-        return self._url
-
-    @property
-    def kwargs(self):
-        print('Redis::kwargs', self._pool.connection_kwargs)
-        return self._pool.connection_kwargs
 
 
 def redis_cli(redis_cache: Redis):

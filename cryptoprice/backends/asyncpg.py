@@ -1,6 +1,7 @@
 import os
 import subprocess
 import typing
+import asyncio
 from aiocontext import async_contextmanager as contextmanager
 import asyncpg
 from asyncpg import Connection
@@ -23,28 +24,43 @@ class AsyncPgBackend(object):
     def __init__(self, settings: Settings) -> None:
         self._config = settings.get('DATABASE')
         self._url = self._config.get('URL')
-        self._pool = None
+
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self._connect())
+
+        logger.debug("AsyncPgBackend::__init__ pool: %s", self._pool)
+
+    async def _connect(self):
+        logger.debug("Creating Postgresql connection")
+
+        try:
+            if self._url:
+                logger.debug("Creating Postgresql connection from URL")
+                self._pool = await asyncpg.create_pool(self._url)
+            else:
+                logger.debug("Creating Postgresql connection from credentials")
+                kwargs = {}
+                if 'DATBASE' not in self._config:
+                    kwargs['database'] = self._config.pop('NAME', '')
+
+                for k in ('HOST', 'DATABASE', 'USER', 'PORT', 'PASSWORD', 'TIMEOUT', 'SSL'):
+                    if k in self._config:
+                        kwargs[k.lower()] = self._config[k]
+
+                self._pool = await asyncpg.create_pool(**kwargs)
+
+            # 'PING' the DB
+            ping = await self.fetch("SELECT $1", 'PONG')
+            logger.debug("ping: %s", ping[0][0])
+        except Exception as e:
+            logger.error("connection error: %s", e)
+            raise
+
+        return self._pool
 
     async def pool(self):
         if self._pool:
             return self._pool
-
-        if self._url:
-            logger.debug("Creating Postgresql connection from URL")
-            self._pool = await asyncpg.create_pool(self._url)
-        else:
-            logger.debug("Creating Postgresql connection from credentials")
-            kwargs = {}
-            if 'DATBASE' not in self._config:
-                kwargs['database'] = self._config.pop('NAME', '')
-
-            for k in ('HOST', 'DATABASE', 'USER', 'PORT', 'PASSWORD', 'TIMEOUT', 'SSL'):
-                if k in self._config:
-                    kwargs[k.lower()] = self._config[k]
-
-            self._pool = await asyncpg.create_pool(**kwargs)
-
-        return self._pool
 
     async def fetch(self, *args, **kwargs):
         pool = await self.pool()

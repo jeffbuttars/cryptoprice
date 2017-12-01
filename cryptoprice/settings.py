@@ -31,6 +31,7 @@ class Env(environment.Environment):
         'CLIENT_ID': typesystem.string(default='3430dd2a3e46404eb07c480759af0320'),
         'CLIENT_SECRET': typesystem.string(default='283832c3133849b19ae90b6b596ef933'),
         'REDIS_URL': typesystem.string(default='redis://127.0.0.1:6379/0'),
+        'DATABASE_URL': typesystem.string(default=''),
         'VERIFICATION_TOKEN': typesystem.string(default='2514b2465e7448ecbdc55cff56b426b9'),
         'SLACK_BOT_TOKEN': typesystem.string(default='e544eb2e1cfb4abda385fb6e9b1e950e'),
         'SLACK_API_SCOPE': typesystem.string(default=''),
@@ -48,10 +49,10 @@ settings = {
         'NAME': 'cryptoprice',
         'USER': 'cryptoprice',
         'PASSWORD': 'cryptoprice',
-        #  'URL': 'postgresql://cryptoprice:cryptoprice@localhost/cryptoprice'
+        'URL': env['DATABASE_URL'],
 
     },
-    'CACHE': {
+    'REDIS': {
         'URL': env['REDIS_URL'],
         'MIN_POOL': 2,
         'MAX_POOL': 8,

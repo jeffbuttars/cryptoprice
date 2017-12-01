@@ -7,7 +7,7 @@ name = "pypi"
 
 [packages]
 
-flask = "*"
+Flask = "*"
 gunicorn = "*"
 redis = "*"
 apistar = {extras = ["asyncio"]}
@@ -23,3 +23,5 @@ aioredis = "*"
 [dev-packages]
 
 neovim = "*"
+jedi = "*"
+"flake8" = "*"
