@@ -47,7 +47,7 @@ class CryptoBot(object):
         logger.debug("CryptoBot::__init__ loop: %s", loop)
         task = loop.create_task(self._cw.update())
         logger.debug("CryptoBot::__init__ update task: %s, waiting...", task)
-        loop.wait(task)
+        asyncio.wait(task)
         logger.debug("CryptoBot::__init__ update done.")
 
     @property

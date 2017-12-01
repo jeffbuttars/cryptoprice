@@ -6,7 +6,6 @@ import logging
 
 
 logger = logging.getLogger(__name__)
-loop = asyncio.get_event_loop()
 
 
 class Redis(object):
@@ -26,8 +25,12 @@ class Redis(object):
         self._min_pool = self._config.get('MIN_POOL', 1)
         self._max_pool = self._config.get('MAX_POOL', 8)
 
-        self._pool = loop.run_until_complete(aioredis.create_pool(self._url))
-
+        # Get the loop and establish our connection pool
+        logger.debug('Redis::__init__: creating pool...')
+        loop = asyncio.get_event_loop()
+        task = loop.create_task(aioredis.create_pool(self._url))
+        logger.debug('Redis::__init__: creating pool task: %s', task)
+        self._pool = asyncio.wait(task)
         logger.debug('Redis::__init__: pool %s', self._pool)
 
     async def exec(self, *args, **kwargs):
@@ -62,6 +65,7 @@ def redis_cli(redis_cache: Redis):
     """
     Run the Redis cli with the project Redis connection settings
     """
+    loop = asyncio.get_event_loop()
     conn_info = loop.run_until_complete(redis_cache.conn_info())
 
     args = ['redis-cli', '-n', f"{conn_info.get('db', 0)}"]
