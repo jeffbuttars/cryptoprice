@@ -1,5 +1,6 @@
 import string
-import asyncio
+from pprint import pformat
+import json
 from apistar import Component, Settings, Response, reverse_url
 from backends.redis import Redis
 from backends.asyncpg import AsyncPgBackend
@@ -43,12 +44,10 @@ class CryptoBot(object):
 
         # Get the global async loop and have it run update to pre-heat
         # the cache of price data.
-        loop = asyncio.get_event_loop()
-        logger.debug("CryptoBot::__init__ loop: %s", loop)
-        task = loop.create_task(self._cw.update())
-        logger.debug("CryptoBot::__init__ update task: %s, waiting...", task)
-        asyncio.wait(task)
-        logger.debug("CryptoBot::__init__ update done.")
+        #  loop = asyncio.get_event_loop()
+        #  logger.debug("CryptoBot::__init__ loop: %s", loop)
+        #  loop.run_until_complete(self._cw.update())
+        #  logger.debug("CryptoBot::__init__ update done.")
 
     @property
     def api(self):
@@ -119,7 +118,7 @@ class CryptoBot(object):
         if resp.status != 200:
             resp.raise_for_status()
             # FYI: Will not always raise for status
-            return
+            return ''
 
         # To keep track of authorized teams and their associated OAuth tokens,
         # we will save the team ID and bot tokens to the global
@@ -141,9 +140,11 @@ class CryptoBot(object):
                     EXCLUDED.name, EXCLUDED.auth
                     )
             """,
-            team_id, token, bot_token, name, r_data)
+            team_id, token, bot_token, name, json.dumps(r_data))
 
         logger.debug("SlackBot oauth complete for team %s, %s", team_id, insert)
+
+        return name
 
     async def send_price_message(self, team_id, user_id, channel_id, message):
         """
@@ -165,14 +166,19 @@ class CryptoBot(object):
         )
 
         message = message.lower()
+        logger.debug('MESSAGE: %s', message)
         parts = message.translate(str.maketrans('', '', string.punctuation)).split()
+        logger.debug('MESSAGE PARTS: %s', parts)
 
-        matched = self._cw.fuzzy_match(parts)
+        matched = await self._cw.fuzzy_match(parts)
         logger.debug('MATCHED: %s', matched)
         resp_str = '\n'.join([m.slack_str for m in matched])
 
+        if not resp_str:
+            logger.error("Empty price string generated!!! message: %s", message)
+
         team = await self.get_team(team_id)
-        logger.debug("send_price team %s", team)
+        logger.debug("send_price team %s", pformat(team))
 
         headers = {
             'Authorization': f'Bearer {team["bot_access_token"]}',
@@ -188,13 +194,14 @@ class CryptoBot(object):
         }
 
         logger.debug("send_price sending message %s", resp_str)
-        resp = self._client.post(
+        resp = await self._client.post(
                 'https://slack.com/api/chat.postMessage',
                 headers=headers,
                 json=data,
         )
 
-        logger.debug('send_price_message resp: %s', resp)
+        #  logger.debug('send_price_message resp: %s', resp)
+
         if resp.status != 200:
             logger.error('problem while posting slack message. %s', resp)
             return ''

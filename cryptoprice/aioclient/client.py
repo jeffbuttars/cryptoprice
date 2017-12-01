@@ -37,7 +37,7 @@ class Client(object):
         resp = await self._session.get(*args, **kwargs)
 
         logger.debug("AIOClient get resp: %s", resp)
-        logger.debug("AIOClient get resp: %s", dir(resp))
+        #  logger.debug("AIOClient get resp: %s", dir(resp))
 
         return resp
 
@@ -47,7 +47,7 @@ class Client(object):
         resp = await self._session.post(*args, **kwargs)
 
         logger.debug("AIOClient post resp: %s", resp)
-        logger.debug("AIOClient post resp: %s", dir(resp))
+        #  logger.debug("AIOClient post resp: %s", dir(resp))
 
         return resp
 

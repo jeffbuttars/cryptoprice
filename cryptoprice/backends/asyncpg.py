@@ -24,11 +24,7 @@ class AsyncPgBackend(object):
     def __init__(self, settings: Settings) -> None:
         self._config = settings.get('DATABASE')
         self._url = self._config.get('URL')
-
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self._connect())
-
-        logger.debug("AsyncPgBackend::__init__ pool: %s", self._pool)
+        self._pool = None
 
     async def _connect(self):
         logger.debug("Creating Postgresql connection")
@@ -58,12 +54,15 @@ class AsyncPgBackend(object):
 
         return self._pool
 
+    @property
     async def pool(self):
         if self._pool:
             return self._pool
 
+        return await self._connect()
+
     async def fetch(self, *args, **kwargs):
-        pool = await self.pool()
+        pool = await self.pool
 
         async with pool.acquire() as conn:
             try:
@@ -73,7 +72,7 @@ class AsyncPgBackend(object):
                 raise
 
     async def exec(self, *args, **kwargs):
-        pool = await self.pool()
+        pool = await self.pool
 
         async with pool.acquire() as conn:
             try:
@@ -96,21 +95,17 @@ async def get_conn(backend: AsyncPgBackend) -> typing.Generator[Connection, None
     """
     Get a database connection in a context that will release itself when the context is left.
     """
-    pool = await backend.pool()
+    pool = await backend.pool
     conn = await pool.acquire()
     logger.debug("asyncpg get_conn pool: %s, conn: %s", pool, conn)
 
     try:
-        logger.debug("YIELDING conn")
         yield conn
-        logger.debug("YIELDING done")
     except Exception as e:
         logger.error("AsyncPG Error: %s", e)
         raise
     finally:
-        logger.debug("RELEASING pool")
         await pool.release(conn)
-        logger.debug("RELEASED pool")
 
 
 def pg_cli(backend: AsyncPgBackend):

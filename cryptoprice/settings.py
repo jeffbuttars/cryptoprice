@@ -20,7 +20,6 @@ class SmarterJSONRenderer(JSONRenderer):
         return json.JSONEncoder().encode(obj)
 
     def render(self, data: http.ResponseData) -> bytes:
-        print('REDNER SELF', self, data)
         return json.dumps(data, default=self._default).encode('utf-8')
 
 

@@ -95,12 +95,12 @@ async def thanks(code: str, state: str, crypto_bot: CryptoBot, request: http.Req
 
     # The bot's auth method to handles exchanging the code for an OAuth token
     try:
-        await crypto_bot.auth(code, crypto_bot.redir_uri(request))
+        team_name = await crypto_bot.auth(code, crypto_bot.redir_uri(request))
     except Exception as e:
         logger.error("OAuth error: %s", e)
         return Response('Unable to authenticate!: %s' % e, status=500)
 
-    return render_template("thanks.html", code=code)
+    return render_template("thanks.html", team_name=team_name)
 
 
 async def dbtest(self, connection: Connection, crypto_bot: CryptoBot,):
@@ -122,7 +122,6 @@ async def dbtest(self, connection: Connection, crypto_bot: CryptoBot,):
         'debug': debug,
         'data': data,
     }
-
 
 
 routes = [

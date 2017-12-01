@@ -32,10 +32,9 @@ class Blockchain(object):
         "last_updated": "1472762067"
     },
     """
-    def __init__(self, client, data={}):
+    def __init__(self, data={}):
         self._ts = datetime.datetime.utcnow()
         self._data = data
-        self._client = client
 
     def __getitem__(self, key):
         return self._data.get(key)
@@ -86,6 +85,9 @@ class Blockchain(object):
         od = self.one_day
         od = f'{od}' if od < 0 else f' {od}'
         return f'{self.symbol}\t${self.usd}  {od}  ${self.market_cap}'
+
+    def __repr__(self):
+        return f'<BlockChain {self.symbol} : ${self.usd}>'
 
 
 class CryptoWorld(object):
@@ -141,11 +143,13 @@ class CryptoWorld(object):
 
         data = await resp.text()
 
-        await self._redis_db.exec('setex', key, data, self._data_expire)
+        await self._redis_db.exec('setex', key, self._data_expire, data)
 
         logger.debug("_get_cached UPDATED")
         data = json.loads(data)
-        #  logger.debug("_get_cached NEW DATA\n%s : %s", key, pformat(data))
+
+        from pprint import pformat
+        logger.debug("_get_cached NEW DATA\n%s : %s", key, pformat(data))
 
         return data
 
@@ -162,7 +166,8 @@ class CryptoWorld(object):
         # Get all price data for all currencies
         logger.debug("Fetching ticker info...")
 
-        t_data = await self._get_cached(self.REDIS_KEY_TICKER, f'{TICKER_URL}', params={'limit': 0})
+        t_data = await self._get_cached(
+            self.REDIS_KEY_TICKER, f'{TICKER_URL}', params={'limit': 0})
 
         for bcd in t_data:
             bc = Blockchain(bcd)
@@ -171,11 +176,11 @@ class CryptoWorld(object):
 
         return self
 
-    def ticker_get(self, bc_id):
+    async def ticker_get(self, bc_id):
         if not bc_id:
             raise ValueError('Invalid block chain id argument')
 
-        self.update_ticker()
+        await self.update_ticker()
         return self._by_id.get(bc_id.lower())
 
     async def update(self):
@@ -183,9 +188,13 @@ class CryptoWorld(object):
         await self.update_global()
         await self.update_ticker()
 
-    def fuzzy_match(self, tokens):
+    async def fuzzy_match(self, tokens):
+        logger.debug("fuzzy_match %s", tokens)
+        await self.update()
+
         symbols = set(tokens) & set(self._by_symbol.keys())
         ids = (set(tokens) & set(self._by_id.keys())) - symbols
+        logger.debug("fuzzy_matched symbols/ids %s %s", symbols, ids)
 
         res = []
         if symbols:
@@ -196,10 +205,10 @@ class CryptoWorld(object):
             for id in ids:
                 res.append(self._by_id[id])
 
+        logger.debug("fuzzy_matched %s", res)
         return res
 
     def __str__(self):
-        #  logger.info("STR: %s", self._by_id.values())
         return (
             f'Total Market Cap\t{self.total_cap}\n'
             f'Total 24 Hour Volume\t{self.total_daily_volume}\n'

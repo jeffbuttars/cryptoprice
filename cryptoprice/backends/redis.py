@@ -25,14 +25,17 @@ class Redis(object):
         logger.debug('Redis::__init__:')
 
         self._config = settings.get('REDIS', {})
-
+        self._pool = None
         self._url = self._config.get('URL')
         self._min_pool = self._config.get('MIN_POOL', 1)
         self._max_pool = self._config.get('MAX_POOL', 8)
 
-        logger.debug('Redis::__init__: creating pool...')
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self._connect())
+    @property
+    async def pool(self):
+        if not self._pool:
+            return await self._connect()
+
+        return self._pool
 
     async def _connect(self):
         try:
@@ -69,17 +72,24 @@ class Redis(object):
         return (address, config)
 
     async def exec(self, *args, **kwargs):
-        logger.debug('Redis::exec: %s %s', args, kwargs)
+        logger.debug('Redis::exec: %s', ("%s %s" % (args, kwargs))[:128])
+
+        for arg in args:
+            logger.debug('Redis::exec: %s', ("%s" % (arg,))[:32])
+
+        pool = await self.pool
 
         try:
-            return await self._pool.execute(*args, **kwargs)
+            return await pool.execute(*args, **kwargs)
         except Exception as e:
             logger.error("Redis exec error: %s", e)
+            raise
 
     async def conn_info(self):
         logger.debug('Redis::conn_info')
+        pool = await self.pool
 
-        with await self._pool as conn:
+        with await pool as conn:
             return {
                 'address': conn.address,
                 'db': conn.db,
