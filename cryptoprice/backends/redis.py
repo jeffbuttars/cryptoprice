@@ -1,6 +1,7 @@
 from urllib.parse import urlparse
 import subprocess
 import asyncio
+import uvloop
 import aioredis
 from apistar import Command, Component, Settings
 import logging
@@ -30,10 +31,16 @@ class Redis(object):
         self._min_pool = self._config.get('MIN_POOL', 1)
         self._max_pool = self._config.get('MAX_POOL', 8)
 
+        print('grabbing lloop')
+        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self._connect())
+        loop.stop()
+
     @property
     async def pool(self):
-        if not self._pool:
-            return await self._connect()
+        #  if not self._pool:
+        #      return await self._connect()
 
         return self._pool
 
