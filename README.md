@@ -25,7 +25,7 @@ For a development build environment:
 
 ## Files
 
-### `./app.py` [./app.py](app.py)
+### [app.py](src/app.py)
 
 This is the entry point of the application and is also the highest level of orchestration for your
 [API Star](https://github.com/encode/apistar) app. This is where we import the libraries and app
