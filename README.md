@@ -67,7 +67,7 @@ This is not as elegant as beging able to initialize components after the App's I
 and then have access to that IOLoop, but is necessary for now.
 
 ### Redis
-The redis module defines a [Component](https://github.com/encode/apistar#components) and a Command
+The redis module defines a [Component](https://github.com/encode/apistar#components) and a [Command](https://github.com/encode/apistar#command-routing)
 
 ### Postgresql
 
