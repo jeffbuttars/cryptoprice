@@ -32,11 +32,11 @@ components = redis.components + asyncpg.components + slackbot.components + clien
 
 
 if settings.get('DEBUG'):
-    print("Running in debug/development mode!!!")
+    logger.debug("Running in debug/development mode!!!")
     print_routes(routes)
     print_settings(settings)
     print_components(components)
-    print("Building app now...")
+    logger.debug("Building app now...")
 
 
 app = App(

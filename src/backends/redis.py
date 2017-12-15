@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class Redis(object):
     """
-    Redis backend
+    Async Redis backend
     """
     def __init__(self, settings: Settings) -> None:
         """
@@ -31,16 +31,11 @@ class Redis(object):
         self._min_pool = self._config.get('MIN_POOL', 1)
         self._max_pool = self._config.get('MAX_POOL', 8)
 
-        print('grabbing lloop')
-        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self._connect())
-        loop.stop()
-
     @property
     async def pool(self):
-        #  if not self._pool:
-        #      return await self._connect()
+        if not self._pool:
+            # Create the connection pool and return it
+            return await self._connect()
 
         return self._pool
 
