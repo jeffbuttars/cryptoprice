@@ -1,7 +1,7 @@
 
-PKG_NAME := SlackCryptoPriceBot
-PKG_NAME_U := SlackCryptoPriceBot
-PKG_VER := $(shell python -c "from __future__ import print_function; import $(PKG_NAME_U); print($(PKG_NAME_U).__version__)")
+PKG_NAME := cryptoprice
+PKG_NAME_U := cryptoprice
+# PKG_VER := $(shell python -c "from __future__ import print_function; import $(PKG_NAME_U); print($(PKG_NAME_U).__version__)")
 
 .PHONY: test cheese clean
 
@@ -26,3 +26,6 @@ install: clean test dist
 	pip install --pre --exists-action=w ./
 
 dinstall: uninstall install
+
+doc: docs
+	$(MAKE) --directory=docs

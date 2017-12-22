@@ -69,7 +69,25 @@ and then have access to that IOLoop, but is necessary for now.
 ### Redis
 The redis module defines a [Component](https://github.com/encode/apistar#components) and a [Command](https://github.com/encode/apistar#command-routing)
 
+The command available is `redis_cli` and will open the Redis CLI using the App's settings.
+
+```bash
+$ ./app.py redis_cli
+[::1]:6379>
+```
+
 ### Postgresql
+The asyncpg module defines a [Component](https://github.com/encode/apistar#components) and a [Command](https://github.com/encode/apistar#command-routing)
+
+The command available is `dbshell` and will run `psql` with the App's connection settings.
+
+```bash
+$ ./app.py dbshell
+psql (10.1)
+Type "help" for help.
+
+cryptoprice=#
+```
 
 ## Aioclient component
 

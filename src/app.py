@@ -1,6 +1,19 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+"""
+
+This is the entry point of the application and is also the highest level of orchestration for your
+`API Star <https://github.com/encode/apistar>`_ app. This is where we import the libraries and app
+specific modules that we'll use to construct the :code:`App` instance.
+
+
+In this application, we have several custom components we need to register with the `App` and
+our settings module for use by the `App`. We also setup a basic root logger here. If debug/dev mode
+is detected then we'll log the app specific routes, settings and components at start up.
+"""
+
+
 import logging
 # Import the apistar modules we'll be using
 from apistar import Include

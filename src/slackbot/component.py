@@ -8,6 +8,11 @@ from aioclient.client import Client
 from .crypto import CryptoWorld
 import logging
 
+"""
+Slackbot Component
+******************
+"""
+
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +30,6 @@ class CryptoBot(object):
                  settings: Settings,
                  asyncpg: AsyncPgBackend,
                  client: Client) -> None:
-        logger.debug("CryptoBot::__init__")
 
         self._config = settings.get('SLACK', {})
         self._asyncpg = asyncpg

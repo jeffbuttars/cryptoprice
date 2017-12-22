@@ -104,6 +104,10 @@ async def thanks(code: str, state: str, crypto_bot: CryptoBot, request: http.Req
 
 
 async def dbtest(self, connection: Connection, crypto_bot: CryptoBot,):
+    """
+    Used only for a quick dbtest with the browser.
+
+    """
     data = None
 
     async with connection as conn:

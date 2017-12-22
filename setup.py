@@ -2,14 +2,14 @@
 
 
 import os
-import sys
+#  import sys
 from pip.req import parse_requirements
 from pip.download import PipSession
 from setuptools import setup, find_packages
 
-THIS_DIR = os.path.basename(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(THIS_DIR, 'SlackCryptoPriceBot'))
-import SlackCryptoPriceBot
+#  THIS_DIR = os.path.basename(os.path.abspath(__file__))
+#  sys.path.insert(0, os.path.join(THIS_DIR, 'src'))
+import src as cryptoprice
 
 
 def get_requires(rname='requirements.txt'):
@@ -29,12 +29,12 @@ def get_requires(rname='requirements.txt'):
 
 
 setup(
-    name="SlackCryptoPriceBot",
-    version=SlackCryptoPriceBot.__version__,
+    name="cryptoprice",
+    version=cryptoprice.__version__,
     packages=find_packages(),
     author="jeff",
-    author_email="jeff@example.com",
-    description="SlackCryptoPriceBot description",
+    author_email="jeff@jeffbuttars.com",
+    description="cryptoprice description",
     # license="Apache",
     url="https://github.com/jeffbuttars/virtualcandy",
 
