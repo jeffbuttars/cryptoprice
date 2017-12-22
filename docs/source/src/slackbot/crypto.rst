@@ -1,6 +1,6 @@
 crypto.py
-******
+*********
 
-.. automodule:: slackbot.app
+.. automodule:: slackbot.crypto
     :members:
     :undoc-members:
