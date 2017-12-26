@@ -1,27 +1,5 @@
 # Cryptoprice
 
-A proof of concept project on building the basics for a fully asynchronous Python REST api with [API Star](https://github.com/encode/apistar).  
-This is an [asyncio](https://docs.python.org/3/library/asyncio.html) based API Star project created with the
-command:
-
-     apistar new . --framework asyncio
-
-## Install / Packaging / Pip
-This project is built and managed with [Pipenv](https://docs.pipenv.org).
-Make sure you have [Pipenv](https://docs.pipenv.org) installed on your system.
-
-To create a virtualenv and install the project packages, from the proejct root directory:
-
-For a production build environment:
-
-    $ pipenv install
-
-
-For a development build environment:
-
-    $ pipenv install --dev
-
-
 ## TODO / Wish List
 * Websocket example
 * GraphQL endpoint

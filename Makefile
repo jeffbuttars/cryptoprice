@@ -18,6 +18,7 @@ cheese: clean test dist
 clean:
 	rm -fr dist
 	rm -fr *.egg-info
+	$(MAKE) --directory=docs clean
 
 uninstall:
 	-yes y | pip uninstall --exists-action=w $(PKG_NAME)
