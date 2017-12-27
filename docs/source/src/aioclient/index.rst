@@ -1,4 +1,4 @@
-aioclient - AsyncIO HTTP client
+AsyncIO HTTP client
 ********************************
 
 .. toctree::

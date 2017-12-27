@@ -1,4 +1,4 @@
-local_utils - Project specific utilities
+Project specific utilities
 *****************************************
 
 .. toctree::

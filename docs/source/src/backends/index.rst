@@ -1,4 +1,4 @@
-backends - Components and Commands for Redis and PostgreSQL
+Backends - Components and Commands for Redis and PostgreSQL
 ***********************************************************
 
 .. toctree::

@@ -1,4 +1,4 @@
-sql - Basic SQL migrations via Bash
+SQL - Basic SQL migrations via Bash
 ***********************************
 
 .. .. toctree::

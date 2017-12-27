@@ -1,5 +1,12 @@
+"""
+The cryptoprice settings mostly maps environmental values to settings names and values
+with defaults provided.
+
+Cryptoprice also uses a customized JSONRenderer, so import that and set it as our projects
+:code:`RENDERER`.
+"""
+
 import logging
-from pprint import pformat as pf
 from apistar import environment, typesystem
 from local_utils.renderer import JSONRenderer
 
@@ -8,6 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 class Env(environment.Environment):
+    """
+    Simple mapping from environment settings.
+    """
     properties = {
         'PYTHON_DEBUG': typesystem.boolean(default=False),
         'DEBUG': typesystem.boolean(default=False),
@@ -26,7 +36,6 @@ class Env(environment.Environment):
 env = Env()
 
 
-#  'URL': 'postgresql://cryptoprice:cryptoprice@localhost/cryptoprice'
 settings = {
     'DATABASE': {
         'NAME': 'cryptoprice',
@@ -56,5 +65,6 @@ settings = {
     'RENDERERS': [JSONRenderer()],
     'DEBUG': env['DEBUG'] or env['PYTHON_DEBUG']
 }
-
-logger.debug("settings %s", pf(settings))
+"""
+The all mighty settings object
+"""

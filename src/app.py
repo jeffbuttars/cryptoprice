@@ -8,9 +8,52 @@ This is the entry point of the application and is also the highest level of orch
 specific modules that we'll use to construct the :code:`App` instance.
 
 
-In this application, we have several custom components we need to register with the `App` and
-our settings module for use by the `App`. We also setup a basic root logger here. If debug/dev mode
-is detected then we'll log the app specific routes, settings and components at start up.
+In this application, we have several custom components we need to register with the :code:`App` and
+our settings module for use by the :code:`App`. We also setup a basic root logger here.
+If debug/dev mode is detected then we'll log the app specific routes,
+settings and components at start up.
+
+Logger Setup
+--------------------
+
+We use a basic a root logger that will set the level to :code:`DEBUG` if the settings
+have :code:`DEBUG` set to something truthy and :code:`INFO` otherwise.
+
+Route Setup
+-------------------
+
+We :code:`Include` our project routes from :doc:`slackbot/index` and then routes from
+`API Star <https://github.com/encode/apistar>`_ itself to include it's static and docs routes.
+
+
+App Instantiation
+-----------------
+
+We instantiate the :code:`App` instance with
+
+    * Routes
+        * Our project routes and the `API Star <https://github.com/encode/apistar>`_ routes we use.
+    * Settings
+        * Our project settings instance from :doc:`settings`
+    * Components
+        * Our project's custom components to be registered:
+            * :doc:`aioclient/index`
+            * :doc:`backends/asyncpg`
+            * :doc:`backends/redis`
+            * :doc:`slackbot/component`
+    * Commands
+        * Our project's custom commands to be registered:
+            * :doc:`backends/asyncpg`
+            * :doc:`backends/redis`
+
+::
+
+    app = App(
+        routes=routes,
+        settings=settings,
+        components=components,
+        commands=redis.commands + asyncpg.commands
+    )
 """
 
 
@@ -44,6 +87,7 @@ routes = [
 components = redis.components + asyncpg.components + slackbot.components + client.components
 
 
+# In DEBUG/DEV environment dump more info to the console/logger
 if settings.get('DEBUG'):
     logger.debug("Running in debug/development mode!!!")
     print_routes(routes)
